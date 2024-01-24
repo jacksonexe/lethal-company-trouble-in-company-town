@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Trouble_In_Company_Town.Patches;
+using UnityEngine;
 
 namespace Trouble_In_Company_Town
 {
@@ -21,6 +22,7 @@ namespace Trouble_In_Company_Town
         private static TownBase Instance;
 
         internal ManualLogSource mls;
+        public static AssetBundle MainAssetBundle;
 
         void Awake()
         {
@@ -28,6 +30,9 @@ namespace Trouble_In_Company_Town
             {
                 Instance = this;
             }
+            var dllFolderPath = System.IO.Path.GetDirectoryName(Info.Location);
+            var assetBundleFilePath = System.IO.Path.Combine(dllFolderPath, "TCTAssets");
+            MainAssetBundle = AssetBundle.LoadFromFile(assetBundleFilePath);
 
             mls = BepInEx.Logging.Logger.CreateLogSource(modGUID);
 
@@ -35,6 +40,8 @@ namespace Trouble_In_Company_Town
 
             harmony.PatchAll(typeof(TownBase));
             harmony.PatchAll(typeof(PlayerControllerBPatch));
+            harmony.PatchAll(typeof(RoundManagerPatch));
+            harmony.PatchAll(typeof(NetworkObjectManagerPatch));
         }
     }
 }
