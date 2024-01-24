@@ -1,0 +1,8 @@
+{
+    "name": "Trouble In Company Town",
+    "version_number": "1.0.0",
+    "website_url": "https://github.com/jacksonexe/lethal-company-trouble-in-company-town",
+    "description": "Social deception gamemode that pits crew against a set of traitors",
+    "dependencies": [
+    ]
+}
