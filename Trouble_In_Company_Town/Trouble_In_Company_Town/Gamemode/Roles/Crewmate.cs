@@ -9,19 +9,27 @@ using TMPro;
 
 namespace Trouble_In_Company_Town.Gamemode
 {
+    public enum Faction
+    {
+        CREWMATE,
+        TRAITOR
+    }
+
     public class Crewmate
     {
-        private SteamId playerId;
-        private PlayerControllerB controller;
-       
-        public Crewmate(SteamId steamId, PlayerControllerB controller)
+        public ulong playerId {  get; protected set; }
+        public PlayerControllerB controller { get; protected set; }
+
+        public Faction Faction { get; protected set; }
+
+        public Crewmate(ulong clientId, PlayerControllerB controller)
         {
-            this.playerId = steamId;
+            this.playerId = clientId;
             this.controller = controller;
-            AddChatMessage("You are innocent");
+            this.Faction = Faction.CREWMATE;
         }
 
-        private void AddChatMessage(string chatMessage, string textColor="FF0000") //Copy of the client side only message
+        private void AddChatMessage(string chatMessage, string textColor = "FF0000") //Copy of the client side only message
         {
             if (!(HUDManager.Instance.lastChatMessage == chatMessage))
             {
@@ -49,5 +57,25 @@ namespace Trouble_In_Company_Town.Gamemode
             }
         }
 
+        public virtual string GetRoleName() => "Crewmate";
+
+        public virtual bool GetWarningTipSetting() => false;
+        public virtual string GetTextColor() => "008000";
+
+        public virtual string GetRoleGoal() => "collect scrap to win";
+
+        public virtual void NotifyOfRole()
+        {
+            HUDManager.Instance.DisplayTip("You are a ", GetRoleName(), GetWarningTipSetting());
+            AddChatMessage("You are a " + GetRoleName() + " " + GetRoleGoal() + ".", GetTextColor());
+        }
+        public override bool Equals(object o)
+        {
+            return (o as Crewmate)?.playerId == this.playerId;
+        }
+        public override int GetHashCode()
+        {
+            return playerId.GetHashCode();
+        }
     }
 }

@@ -13,12 +13,10 @@ namespace Trouble_In_Company_Town.Patches
     [HarmonyPatch]
     public class NetworkObjectManagerPatch
     {
-        static GameObject networkPrefab;
-
         [HarmonyPostfix, HarmonyPatch(typeof(GameNetworkManager), "Start")]
-        public static void Init(ref GameNetworkManager ___instance)
+        public static void Init(GameNetworkManager __instance)
         {
-            ___instance.GetComponent<NetworkManager>().AddNetworkPrefab(TownBase.Instance.netManagerPrefab);
+            __instance.GetComponent<NetworkManager>().AddNetworkPrefab(TownBase.Instance.netManagerPrefab);
         }
 
         [HarmonyPostfix, HarmonyPatch(typeof(StartOfRound), "Awake")]

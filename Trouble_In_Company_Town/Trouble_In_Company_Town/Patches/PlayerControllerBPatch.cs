@@ -12,12 +12,11 @@ namespace Trouble_In_Company_Town.Patches
     [HarmonyPatch(typeof(PlayerControllerB))]
     internal class PlayerControllerBPatch
     {
-        private Crewmate role;
-
         [HarmonyPatch("Update")]
         [HarmonyPostfix]
         static void infiniteSprintPatch(ref float  ___sprintMeter)
         {
+            //For debug
             ___sprintMeter = 1f;
         }
     }

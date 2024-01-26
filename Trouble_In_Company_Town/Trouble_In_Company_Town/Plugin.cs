@@ -57,8 +57,10 @@ namespace Trouble_In_Company_Town
 
             harmony.PatchAll(typeof(TownBase));
             harmony.PatchAll(typeof(PlayerControllerBPatch));
-            harmony.PatchAll(typeof(RoundManagerPatch));
+            harmony.PatchAll(typeof(StartOfRoundPatch));
             harmony.PatchAll(typeof(NetworkObjectManagerPatch));
+            harmony.PatchAll(typeof(HudManagerPatches));
+            TCTRoundManager.Init();
         }
     }
 }
