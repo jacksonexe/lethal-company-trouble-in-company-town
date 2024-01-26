@@ -1,0 +1,26 @@
+ManifestFileVersion: 0
+CRC: 3627069358
+Hashes:
+  AssetFileHash:
+    serializedVersion: 2
+    Hash: 577cbfca2826c9ebecfa50969b10fbb1
+  TypeTreeHash:
+    serializedVersion: 2
+    Hash: ff237436aa4ea487db535f6a55f6e34c
+  IncrementalBuildHash:
+    serializedVersion: 2
+    Hash: 577cbfca2826c9ebecfa50969b10fbb1
+HashAppended: 0
+ClassTypes:
+- Class: 1
+  Script: {instanceID: 0}
+- Class: 4
+  Script: {instanceID: 0}
+- Class: 114
+  Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+- Class: 115
+  Script: {instanceID: 0}
+SerializeReferenceClassIdentifiers: []
+Assets:
+- Assets/TCAssets/TCTAssets.prefab
+Dependencies: []

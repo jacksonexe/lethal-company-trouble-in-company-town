@@ -78,10 +78,5 @@ namespace Trouble_In_Company_Town.Gamemode
                 }
             }
         }
-
-        private bool isRoundOver()
-        {
-
-        }
     }
 }

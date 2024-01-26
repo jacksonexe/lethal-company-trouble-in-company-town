@@ -16,10 +16,9 @@ namespace Trouble_In_Company_Town.Patches
 
         [HarmonyPatch("Update")]
         [HarmonyPostfix]
-        static void infiniteSprintPatch(ref float  ___sprintMeter, ref string ___playerUsername)
+        static void infiniteSprintPatch(ref float  ___sprintMeter)
         {
             ___sprintMeter = 1f;
-            ___playerUsername = "With stupid ->";
         }
     }
 }

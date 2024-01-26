@@ -13,16 +13,12 @@ namespace Trouble_In_Company_Town.Patches
     [HarmonyPatch]
     public class NetworkObjectManagerPatch
     {
+        static GameObject networkPrefab;
+
         [HarmonyPostfix, HarmonyPatch(typeof(GameNetworkManager), "Start")]
-        public static void Init()
+        public static void Init(ref GameNetworkManager ___instance)
         {
-            if (networkPrefab != null)
-                return;
-
-            networkPrefab = (GameObject)TownBase.MainAssetBundle.LoadAsset("TCTNetworkHandler");
-            networkPrefab.AddComponent<TCTNetworkHandler>();
-
-            NetworkManager.Singleton.AddNetworkPrefab(networkPrefab);
+            ___instance.GetComponent<NetworkManager>().AddNetworkPrefab(TownBase.Instance.netManagerPrefab);
         }
 
         [HarmonyPostfix, HarmonyPatch(typeof(StartOfRound), "Awake")]
@@ -30,11 +26,10 @@ namespace Trouble_In_Company_Town.Patches
         {
             if (NetworkManager.Singleton.IsHost || NetworkManager.Singleton.IsServer)
             {
-                var networkHandlerHost = UnityEngine.Object.Instantiate(networkPrefab, Vector3.zero, Quaternion.identity);
+                var networkHandlerHost = UnityEngine.Object.Instantiate(TownBase.Instance.netManagerPrefab, Vector3.zero, Quaternion.identity);
                 networkHandlerHost.GetComponent<NetworkObject>().Spawn();
             }
         }
 
-        static GameObject networkPrefab;
     }
 }

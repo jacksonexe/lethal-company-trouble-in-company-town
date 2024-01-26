@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BepInEx.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,30 +11,28 @@ namespace Trouble_In_Company_Town.Gamemode
     internal class TCTNetworkHandler : NetworkBehaviour
     {
         public static TCTNetworkHandler Instance { get; private set; }
-
-        public static event Action<String> LevelEvent;
+        internal ManualLogSource mls;
 
         public override void OnNetworkSpawn()
         {
-            LevelEvent = null;
-
             if (NetworkManager.Singleton.IsHost || NetworkManager.Singleton.IsServer)
                 Instance?.gameObject.GetComponent<NetworkObject>().Despawn();
             Instance = this;
+            mls = BepInEx.Logging.Logger.CreateLogSource("TCTNetworkManager");
 
             base.OnNetworkSpawn();
         }
 
         [ClientRpc]
-        public void EventClientRpc(string eventName)
+        public void EventClientRpc(int id)
         {
-            LevelEvent?.Invoke(eventName); // If the event has subscribers (does not equal null), invoke the event
+            mls.LogInfo("Event recieved for " + id);
         }
 
         [ServerRpc(RequireOwnership = false)]
-        public void EventServerRPC()
+        public void EventServerRPC(int id)
         {
-            
+            EventServerRPC(id);
         }
     }
 }
