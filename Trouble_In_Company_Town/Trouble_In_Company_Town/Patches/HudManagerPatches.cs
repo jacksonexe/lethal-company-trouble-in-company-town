@@ -24,7 +24,7 @@ namespace Trouble_In_Company_Town.Patches
             }
             else
             {
-                Crewmate role = TCTRoundManager.Instance.GetPlayerRole(playerScript.playerClientId);
+                Crewmate role = TCTRoundManager.Instance.GetPlayerRole(playerScript);
                 if (role != null)
                 {
                     __instance.spectatingPlayerText.text = "(Spectating: " + playerScript.playerUsername + " - " + role.GetRoleName() + ")";
@@ -44,7 +44,7 @@ namespace Trouble_In_Company_Town.Patches
                 if (___spectatingPlayerBoxes.Values.Contains(playerScript))
                 {
                     GameObject gameObject = ___spectatingPlayerBoxes.FirstOrDefault((KeyValuePair<Animator, PlayerControllerB> x) => x.Value == playerScript).Key.gameObject;
-                    Crewmate role = TCTRoundManager.Instance.GetPlayerRole(playerScript.playerClientId);
+                    Crewmate role = TCTRoundManager.Instance.GetPlayerRole(playerScript);
                     if (role != null)
                     {
                         gameObject.GetComponentInChildren<TextMeshProUGUI>().text = playerScript.playerUsername + " - " + role.GetRoleName();
@@ -62,7 +62,7 @@ namespace Trouble_In_Company_Town.Patches
             {
                 PlayerStats playerStats = stats.allPlayerStats[i];
                 PlayerControllerB player = StartOfRound.Instance.allPlayerScripts[i];
-                Crewmate role = TCTRoundManager.Instance.GetPlayerRole(player.playerClientId);
+                Crewmate role = TCTRoundManager.Instance.GetPlayerRole(player);
                 if (role != null)
                 {
                     playerStats.playerNotes.Clear();

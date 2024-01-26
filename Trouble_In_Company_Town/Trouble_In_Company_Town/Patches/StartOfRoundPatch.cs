@@ -26,9 +26,9 @@ namespace Trouble_In_Company_Town.Patches
             {
                 terminal.groupCredits = 500;
             }
-            TCTRoundManager.Instance.startRound(__instance, __instance.IsHost || __instance.IsServer);
             if(__instance.IsHost || __instance.IsServer) 
             {
+                TCTRoundManager.Instance.startRound(__instance);
                 Vector3 spawnPos = GameNetworkManager.Instance.localPlayerController.transform.position;
 
                 if (GameNetworkManager.Instance.localPlayerController.isPlayerDead)

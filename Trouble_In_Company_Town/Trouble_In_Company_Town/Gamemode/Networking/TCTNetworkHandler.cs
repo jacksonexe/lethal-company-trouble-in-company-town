@@ -29,7 +29,24 @@ namespace Trouble_In_Company_Town.Gamemode
             base.OnNetworkSpawn();
         }
 
-        [ServerRpc(RequireOwnership =false)]
+        private ClientRpcParams createBroadcastConfig()
+        {
+            List<ulong> clients = new List<ulong>();
+            for (int i = 0; i < StartOfRound.Instance.allPlayerScripts.Length; i++)
+            {
+                clients.Add(StartOfRound.Instance.allPlayerScripts[i].playerClientId);
+            }
+            ClientRpcParams clientRpcParams = new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = clients.ToArray(),
+                }
+            };
+            return clientRpcParams;
+        }
+
+        [ServerRpc(RequireOwnership = false)]
         public void sendRoleServerRpc(ulong id, string role)
         {
             if (mls == null)
@@ -37,19 +54,20 @@ namespace Trouble_In_Company_Town.Gamemode
                 mls = BepInEx.Logging.Logger.CreateLogSource("TCTNetworkManager");
             }
             mls.LogDebug("Sending role " + role + " to " + id);
-            sendRoleClientRpc(id, role);
+            ClientRpcParams clientRpcParams = createBroadcastConfig();
+            sendRoleClientRpc(id, role, clientRpcParams);
         }
 
         [ClientRpc]
-        public void sendRoleClientRpc(ulong id, string role)
+        public void sendRoleClientRpc(ulong id, string role, ClientRpcParams clientRpcParams = default)
         {
-            if(mls == null)
+            if (mls == null)
             {
                 mls = BepInEx.Logging.Logger.CreateLogSource("TCTNetworkManager");
             }
             mls.LogDebug("recieved role " + role + " to " + id);
             PlayerControllerB player = null;
-            for(int i = 0; i < StartOfRound.Instance.allPlayerScripts.Length; i++)
+            for (int i = 0; i < StartOfRound.Instance.allPlayerScripts.Length; i++)
             {
                 if (StartOfRound.Instance.allPlayerScripts[i].playerClientId == id)
                 {
@@ -87,13 +105,14 @@ namespace Trouble_In_Company_Town.Gamemode
                 mls = BepInEx.Logging.Logger.CreateLogSource("TCTNetworkManager");
             }
             mls.LogDebug("Round ended, winner " + winner + " " + traitors);
-            
+
             HUDManager.Instance.AddTextToChatOnServer("Round over winner is: " + winner + " " + traitors);
-            NotifyRoundOverClientRpc(winner, traitors, warn, faction);
+            ClientRpcParams clientRpcParams = createBroadcastConfig();
+            NotifyRoundOverClientRpc(winner, traitors, warn, faction, clientRpcParams);
         }
 
         [ClientRpc]
-        public void NotifyRoundOverClientRpc(string winner, string traitors, bool warn, Faction faction)
+        public void NotifyRoundOverClientRpc(string winner, string traitors, bool warn, Faction faction, ClientRpcParams clientRpcParams = default)
         {
             if (mls == null)
             {
@@ -102,12 +121,13 @@ namespace Trouble_In_Company_Town.Gamemode
             mls.LogDebug("Round ended received, winner " + winner + " " + traitors);
             PlayerControllerB player = GameNetworkManager.Instance.localPlayerController;
             HUDManager.Instance.DisplayTip("Round Over ", "Winner: " + winner + " Traitors: " + traitors, warn);
-            if(!player.isPlayerDead) {
+            if (!player.isPlayerDead)
+            {
                 StartOfRound.Instance.ForcePlayerIntoShip();
-                Crewmate crew = TCTRoundManager.Instance.GetPlayerRole(StartOfRound.Instance.localPlayerController.playerClientId);
+                Crewmate crew = TCTRoundManager.Instance.GetPlayerRole(StartOfRound.Instance.localPlayerController);
                 if (crew != null && faction != crew.Faction)
                 {
-                    StartOfRound.Instance.localPlayerController.KillPlayer(new UnityEngine.Vector3(0,0,0), false);
+                    StartOfRound.Instance.localPlayerController.KillPlayer(new UnityEngine.Vector3(0, 0, 0), false);
                 }
             }
             EnemyAI[] array = UnityEngine.Object.FindObjectsOfType<EnemyAI>();
@@ -116,9 +136,24 @@ namespace Trouble_In_Company_Town.Gamemode
                 array[i].EnableEnemyMesh(enable: true);
             }
 
-            if (StartOfRound.Instance.IsClient)
+            if (!StartOfRound.Instance.IsHost && !StartOfRound.Instance.IsServer)
             {
                 TCTRoundManager.Instance.UpdateClientScore(faction);
+            }
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void NotifyRoundStartServerRpc()
+        {
+            ClientRpcParams clientRpcParams = createBroadcastConfig();
+            NotifyRoundStartClientRpc(clientRpcParams);
+        }
+
+        [ClientRpc]
+        public void NotifyRoundStartClientRpc(ClientRpcParams clientRpcParans = default)
+        {
+            if(!StartOfRound.Instance.IsHost && !StartOfRound.Instance.IsServer) {
+                TCTRoundManager.Instance.resetRound();
             }
         }
     }

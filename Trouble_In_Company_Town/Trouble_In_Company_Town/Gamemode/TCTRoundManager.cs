@@ -13,7 +13,7 @@ namespace Trouble_In_Company_Town.Gamemode
 {
     public class TCTRoundManager
     {
-        private List<Crewmate> players;
+        private static List<Crewmate> players;
         private static int MAX_TRAITORS = 3;
         internal ManualLogSource mls;
         public static TCTRoundManager Instance { get; private set; }
@@ -39,16 +39,14 @@ namespace Trouble_In_Company_Town.Gamemode
             }
         }
 
-        public void startRound(StartOfRound playersManager, bool isServer)
+        public void startRound(StartOfRound playersManager)
         {
             if (IsRunning) return;
             this.resetRound();
-            if (isServer)
-            {
-                IsInitializing = true;
-                populatePlayers(playersManager);
-                IsInitializing = false;
-            }
+            IsInitializing = true;
+            TCTNetworkHandler.Instance.NotifyRoundStartServerRpc();
+            populatePlayers(playersManager);
+            IsInitializing = false;
             IsRunning = true;
         }
 
@@ -67,7 +65,6 @@ namespace Trouble_In_Company_Town.Gamemode
                     playersList.Add(controller.playerClientId);
                 }
             }
-            System.Random rand = new System.Random(playersManager.randomMapSeed);
             int numTrators = 1;
             if (playersList.Count > 6)
             {
@@ -77,10 +74,11 @@ namespace Trouble_In_Company_Town.Gamemode
             {
                 numTrators = 1;
             }
-            for (int i = 0; i < numTrators; i++)
+            for (int i = 1; i <= numTrators; i++)
             {
-                ulong tratorId = playersList[rand.Next(0, playersList.Count-1)];
-                mls.LogDebug("Picked " + tratorId + " as a traitor");
+                System.Random rand = new System.Random(playersManager.randomMapSeed);
+                ulong tratorId = playersList[rand.Next(0, playersList.Count)];
+                mls.LogDebug("Picked " + tratorId + " as a traitor from between 0 and " + (playersList.Count));
                 playersList.Remove(tratorId);
                 trators.Add(tratorId);
             }
@@ -108,7 +106,7 @@ namespace Trouble_In_Company_Town.Gamemode
                         {
                             role = new Crewmate(id, controller);
                         }
-                        this.players.Add(role);
+                        players.Add(role);
                         if (id == localPlayer)
                         {
                             LocalPlayersRole = role;
@@ -224,11 +222,12 @@ namespace Trouble_In_Company_Town.Gamemode
             }
         }
 
-        public Crewmate GetPlayerRole(ulong playerId)
+        public Crewmate GetPlayerRole(PlayerControllerB player)
         {
             for (int i = 0; i < players.Count; i++)
             {
-                if (players[i].playerId == playerId) { return players[i]; }
+                mls.LogDebug("Checking player " + players[i].playerId + " " + player.playerClientId);
+                if (players[i].playerId == player.playerClientId) { return players[i]; }
             }
             return null;
         }
