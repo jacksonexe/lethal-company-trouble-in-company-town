@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Trouble_In_Company_Town.Gamemode.Roles;
+using Trouble_In_Company_Town.Gamemode.Sabotages;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -86,14 +87,6 @@ namespace Trouble_In_Company_Town.Gamemode
                 {
                     TCTRoundManager.Instance.registerOtherPlayersRole(crewmate);
                 }
-                EnemyAI[] array = UnityEngine.Object.FindObjectsOfType<EnemyAI>();
-                if (crewmate.Faction == Faction.TRAITOR) //Traitors are immune to monsters
-                {
-                    for (int i = 0; i < array.Length; i++)
-                    {
-                        array[i].EnableEnemyMesh(enable: false);
-                    }
-                }
             }
         }
 
@@ -120,7 +113,7 @@ namespace Trouble_In_Company_Town.Gamemode
             }
             mls.LogDebug("Round ended received, winner " + winner + " " + traitors);
             PlayerControllerB player = GameNetworkManager.Instance.localPlayerController;
-            HUDManager.Instance.DisplayTip("Round Over ", "Winner: " + winner + " Traitors: " + traitors, warn);
+            Utilities.DisplayTips("Round Over ", "Winner: " + winner + "\nTraitors: " + traitors, warn);
             if (!player.isPlayerDead)
             {
                 StartOfRound.Instance.ForcePlayerIntoShip();
@@ -143,18 +136,89 @@ namespace Trouble_In_Company_Town.Gamemode
         }
 
         [ServerRpc(RequireOwnership = false)]
-        public void NotifyRoundStartServerRpc()
+        public void NotifyRoundStartServerRpc(int numTraitors)
         {
             ClientRpcParams clientRpcParams = createBroadcastConfig();
-            NotifyRoundStartClientRpc(clientRpcParams);
+            NotifyRoundStartClientRpc(numTraitors, clientRpcParams);
         }
 
         [ClientRpc]
-        public void NotifyRoundStartClientRpc(ClientRpcParams clientRpcParans = default)
+        public void NotifyRoundStartClientRpc(int numTraitors, ClientRpcParams clientRpcParans = default)
         {
-            if(!StartOfRound.Instance.IsHost && !StartOfRound.Instance.IsServer) {
+            HUDManager.Instance.planetIntroAnimator.SetTrigger("introAnimation");
+            HUDManager.Instance.planetInfoHeaderText.text = "There are traitors among us";
+            HUDManager.Instance.planetInfoSummaryText.text = "There are " + numTraitors + " traitors";
+            HUDManager.Instance.planetRiskLevelText.text = "Company Town is in Trouble";
+            if (!StartOfRound.Instance.IsHost && !StartOfRound.Instance.IsServer) {
                 TCTRoundManager.Instance.resetRound();
             }
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void RequestSabotageServerRpc(ulong clientId, string saboType)
+        {
+            mls.LogDebug("received request to start a sabo " + saboType.ToString());
+            TraitorSabotageManager.Instance.TriggerSabo(clientId, saboType);
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void NotifyOfSabotageServerRpc(string saboType)
+        {
+            mls.LogDebug("sending request to notify of sabo " + saboType.ToString());
+            ClientRpcParams clientRpcParams = createBroadcastConfig();
+            NotifyOfSabotageClientRpc(saboType, clientRpcParams);
+        }
+
+        [ClientRpc]
+        public void NotifyOfSabotageClientRpc(string saboType, ClientRpcParams clientRpcParans = default)
+        {
+            mls.LogDebug("recieved request to notify of sabo " + saboType.ToString());
+            if (TCTRoundManager.Instance.LocalPlayerIsTraitor())
+            {
+                TraitorSabotageManager.Instance.NotifyTraitorsOfSabo(saboType);
+            }
+            TraitorSabotageManager.Instance.HandleOnSabotageTypes(saboType);
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void NotifyOfSabotageOnCooldownServerRpc(ulong clientId, string sabo)
+        {
+            mls.LogDebug("sending info to " + clientId + " that sabo is on cooldown");
+            ClientRpcParams clientRpcParams = new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] { clientId }
+                }
+            };
+            NotifyOfSabotageOnCooldownClientRpc(sabo, clientRpcParams);
+        }
+
+        [ClientRpc]
+        public void NotifyOfSabotageOnCooldownClientRpc(string saboType, ClientRpcParams clientRpcParans = default)
+        {
+            TraitorSabotageManager.Instance.NotifyOfSaboCooldown(saboType);
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void NotifyOfSabotageEndServerRpc(string saboType)
+        {
+            mls.LogDebug("sending request to notify of sabo end " + saboType.ToString());
+            ClientRpcParams clientRpcParams = createBroadcastConfig();
+            NotifyOfSabotageEndClientRpc(saboType, clientRpcParams);
+        }
+
+        [ClientRpc]
+        public void NotifyOfSabotageEndClientRpc(string saboType, ClientRpcParams clientRpcParans = default)
+        {
+            mls.LogDebug("recieved request to notify of sabo end " + saboType.ToString());
+            TraitorSabotageManager.Instance.HandleOffSabotageTypes(saboType);
+        }
+
+        [ServerRpc(RequireOwnership =false)]
+        public void RequestItemSpawnServerRpc(ulong clientId)
+        {
+            SpawnWeaponSabotage.SpawnItemForClient(clientId);
         }
     }
 }

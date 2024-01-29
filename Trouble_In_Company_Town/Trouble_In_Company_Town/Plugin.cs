@@ -8,12 +8,14 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Trouble_In_Company_Town.Gamemode;
+using Trouble_In_Company_Town.Input;
 using Trouble_In_Company_Town.Patches;
 using UnityEngine;
 
 namespace Trouble_In_Company_Town
 {
     [BepInPlugin(modGUID, modName, modVersion)]
+    [BepInDependency("com.rune580.LethalCompanyInputUtils", BepInDependency.DependencyFlags.HardDependency)]
     public class TownBase : BaseUnityPlugin
     {
         private const string modGUID = "jackexe.TroubleInCompanyTown";
@@ -25,6 +27,8 @@ namespace Trouble_In_Company_Town
 
         internal ManualLogSource mls;
         public GameObject netManagerPrefab;
+
+        internal static TraitorInputManagement InputActionsInstance = new TraitorInputManagement();
 
         void Awake()
         {
@@ -60,6 +64,7 @@ namespace Trouble_In_Company_Town
             harmony.PatchAll(typeof(StartOfRoundPatch));
             harmony.PatchAll(typeof(NetworkObjectManagerPatch));
             harmony.PatchAll(typeof(HudManagerPatches));
+            harmony.PatchAll(typeof(RoundManagerPatch));
             TCTRoundManager.Init();
         }
     }

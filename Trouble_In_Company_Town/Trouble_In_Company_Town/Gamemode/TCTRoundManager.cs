@@ -44,7 +44,6 @@ namespace Trouble_In_Company_Town.Gamemode
             if (IsRunning) return;
             this.resetRound();
             IsInitializing = true;
-            TCTNetworkHandler.Instance.NotifyRoundStartServerRpc();
             populatePlayers(playersManager);
             IsInitializing = false;
             IsRunning = true;
@@ -89,6 +88,7 @@ namespace Trouble_In_Company_Town.Gamemode
         {
             ulong localPlayer = GameNetworkManager.Instance.localPlayerController.playerClientId;
             List<ulong> trators = this.getTrators(playersManager);
+            TCTNetworkHandler.Instance.NotifyRoundStartServerRpc(trators.Count);
             for (int i = 0; i < playersManager.allPlayerScripts.Length; i++)
             {
                 PlayerControllerB controller = playersManager.allPlayerScripts[i];
@@ -144,6 +144,7 @@ namespace Trouble_In_Company_Town.Gamemode
         public void resetRound()
         {
             players.Clear();
+            TraitorSabotageManager.Instance.ResetRound();
             LocalPlayersRole = null;
             IsRoundOver = false;
         }
@@ -241,6 +242,26 @@ namespace Trouble_In_Company_Town.Gamemode
             else
             {
                 TCTRoundManager.NumCrewmateWins = TCTRoundManager.NumCrewmateWins + 1;
+            }
+        }
+
+        public bool LocalPlayerIsTraitor()
+        {
+            return LocalPlayersRole != null && LocalPlayersRole.Faction == Faction.TRAITOR;
+        }
+
+        private void Update()
+        {
+            if (IsRunning)
+            {
+                EnemyAI[] array = UnityEngine.Object.FindObjectsOfType<EnemyAI>();
+                if (LocalPlayersRole != null && LocalPlayersRole.Faction == Faction.TRAITOR) //Traitors are immune to monsters
+                {
+                    for (int i = 0; i < array.Length; i++)
+                    {
+                        array[i].EnableEnemyMesh(enable: false);
+                    }
+                }
             }
         }
     }
