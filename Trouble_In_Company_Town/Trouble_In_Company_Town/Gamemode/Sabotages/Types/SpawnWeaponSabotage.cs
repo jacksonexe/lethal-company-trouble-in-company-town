@@ -29,19 +29,22 @@ namespace Trouble_In_Company_Town.Gamemode.Sabotages
                     player = StartOfRound.Instance.allPlayerScripts[i];
                 }
             }
-            Vector3 spawnPos = player.transform.position;
-
-            if (player.isPlayerDead)
+            if (TCTRoundManager.Instance.IsPlayerTraitor(player))
             {
-                spawnPos = player.spectatedPlayerScript.transform.position;
-            }
-            spawnPos.y += 0.5f;
-            GameObject obj = UnityEngine.Object.Instantiate(StartOfRound.Instance.allItemsList.itemsList[52].spawnPrefab, spawnPos, Quaternion.identity);
-            obj.GetComponent<GrabbableObject>().fallTime = 5f;
+                Vector3 spawnPos = player.transform.position;
 
-            obj.AddComponent<ScanNodeProperties>().scrapValue = 0;
-            obj.GetComponent<GrabbableObject>().SetScrapValue(0);
-            obj.GetComponent<NetworkObject>().Spawn();
+                if (player.isPlayerDead)
+                {
+                    spawnPos = player.spectatedPlayerScript.transform.position;
+                }
+                spawnPos.y += 0.5f;
+                GameObject obj = UnityEngine.Object.Instantiate(StartOfRound.Instance.allItemsList.itemsList[52].spawnPrefab, spawnPos, Quaternion.identity);
+                obj.GetComponent<GrabbableObject>().fallTime = 5f;
+
+                obj.AddComponent<ScanNodeProperties>().scrapValue = 0;
+                obj.GetComponent<GrabbableObject>().SetScrapValue(0);
+                obj.GetComponent<NetworkObject>().Spawn();
+            }
         }
 
         public override void StartSabotage()

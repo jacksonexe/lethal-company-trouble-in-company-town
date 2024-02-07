@@ -11,6 +11,7 @@ using static Steamworks.InventoryItem;
 using Unity.Netcode;
 using UnityEngine;
 using System.Data;
+using Trouble_In_Company_Town.UI;
 
 namespace Trouble_In_Company_Town.Patches
 {
@@ -26,10 +27,26 @@ namespace Trouble_In_Company_Town.Patches
             {
                 terminal.groupCredits = 500;
             }
-            if(__instance.IsHost || __instance.IsServer) 
+            if (TownBase.RolePrefab != null || TownBase.KillCooldownPrefab != null)
             {
-                TCTRoundManager.Instance.startRound(__instance);
-                Vector3 spawnPos = GameNetworkManager.Instance.localPlayerController.transform.position;
+                GameObject gameObject = ((Component)((Component)GameObject.Find("Systems").gameObject.transform.Find("UI")).gameObject.transform.Find("Canvas")).gameObject;
+
+                if (TownBase.RolePrefab != null)
+                {
+                    TownBase.RolePrefab = TownBase.bundle.LoadAsset<GameObject>("Assets/TCAssets/RoleUI.prefab");
+                    TownBase.RolesUI = UnityEngine.Object.Instantiate(TownBase.RolePrefab, gameObject.transform).AddComponent<TCTRolesUI>();
+                }
+
+                if (TownBase.KillCooldownPrefab != null)
+                {
+                    TownBase.KillCooldownPrefab = TownBase.bundle.LoadAsset<GameObject>("Assets/TCAssets/KillCooldownUI.prefab");
+                    TownBase.KillCooldownUI = UnityEngine.Object.Instantiate(TownBase.KillCooldownPrefab, gameObject.transform).AddComponent<TCTKillCooldown>();
+                }
+            }
+            if (__instance.IsHost || __instance.IsServer) 
+            {
+                TCTRoundManager.Instance.StartRound(__instance);
+                /*Vector3 spawnPos = GameNetworkManager.Instance.localPlayerController.transform.position;
 
                 if (GameNetworkManager.Instance.localPlayerController.isPlayerDead)
                 {
@@ -41,7 +58,7 @@ namespace Trouble_In_Company_Town.Patches
 
                 obj.AddComponent<ScanNodeProperties>().scrapValue = 500;
                 obj.GetComponent<GrabbableObject>().SetScrapValue(500);
-                obj.GetComponent<NetworkObject>().Spawn();
+                obj.GetComponent<NetworkObject>().Spawn();*/
             }
         }
         [HarmonyPatch("Update")]
@@ -61,7 +78,31 @@ namespace Trouble_In_Company_Town.Patches
                         TCTRoundManager.Instance.SetRoundOver();
                         StartOfRound.Instance.EndGameServerRpc(0);
                         StartOfRound.Instance.SetDoorsClosedServerRpc(true);
-                       
+                    }
+                    if (TownBase.KillCooldownUI != null)
+                    {
+                        if (TCTRoundManager.Instance.IsRunning && !__instance.localPlayerController.isPlayerDead && TCTRoundManager.Instance.LocalPlayerIsTraitor())
+                        {
+                            Traitor localPlayer = (Traitor)TCTRoundManager.LocalPlayersRole;
+                            if (TCTRoundManager.TraitorKillCooldown != null)
+                            {
+                                TownBase.KillCooldownUI.Show(true);
+                                TownBase.KillCooldownUI.SetTimer((int)(TCTRoundManager.TraitorKillCooldown.Value - DateTime.Now.Subtract(localPlayer.LastKillTime).TotalSeconds));
+                            }
+                            else
+                            {
+                                TownBase.KillCooldownUI.Show(false);
+                            }
+                        }
+                        else if (TownBase.KillCooldownUI != null)
+                        {
+                            TownBase.KillCooldownUI.Show(false);
+                        }
+                    }
+
+                    if (TCTRoundManager.Instance.IsRunning && __instance.shipIsLeaving && TimeOfDay.Instance.currentDayTime / TimeOfDay.Instance.totalTime >= TimeOfDay.Instance.shipLeaveAutomaticallyTime)
+                    {
+                        TCTRoundManager.Instance.HandleShipLeaveMidnight(__instance);
                     }
                 }
             }
@@ -78,13 +119,18 @@ namespace Trouble_In_Company_Town.Patches
         [HarmonyPostfix]
         static void PassTimeToNextDayPatch(StartOfRound __instance)
         {
+            int levelSelection = StartOfRound.Instance.currentLevelID;
             StartOfRound.Instance.ResetShip();
+            __instance.ChangeLevel(levelSelection);
+            __instance.ChangePlanet();
             Terminal terminal = UnityEngine.Object.FindObjectOfType<Terminal>();
             if (terminal != null)
             {
                 terminal.groupCredits = 500;
             }
+            TimeOfDay.Instance.daysUntilDeadline = 1;
             __instance.screenLevelDescription.SetText("Traitor Wins: " + TCTRoundManager.NumTraitorWins + "\nCrewmate Wins: " + TCTRoundManager.NumCrewmateWins);
         }
+
     }
 }

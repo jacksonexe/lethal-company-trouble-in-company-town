@@ -7,8 +7,10 @@ using System.Text;
 using System.Threading.Tasks;
 using Trouble_In_Company_Town.Gamemode.Roles;
 using Trouble_In_Company_Town.Gamemode.Sabotages;
+using Trouble_In_Company_Town.UI;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Trouble_In_Company_Town.Gamemode
 {
@@ -79,6 +81,11 @@ namespace Trouble_In_Company_Town.Gamemode
             if (player != null)
             {
                 Crewmate crewmate = RoleFactory.GetRole(role, id, player);
+                if (TownBase.RolesUI != null)
+                {
+                    TownBase.RolesUI.SetRole(crewmate.GetRoleName(), crewmate.GetRoleColor());
+                    TownBase.RolesUI.Show(true);
+                }
                 if (id == StartOfRound.Instance.localPlayerController.playerClientId)
                 {
                     TCTRoundManager.Instance.registerLocalPlayersRole(crewmate);
@@ -114,6 +121,10 @@ namespace Trouble_In_Company_Town.Gamemode
             mls.LogDebug("Round ended received, winner " + winner + " " + traitors);
             PlayerControllerB player = GameNetworkManager.Instance.localPlayerController;
             Utilities.DisplayTips("Round Over ", "Winner: " + winner + "\nTraitors: " + traitors, warn);
+            if (TownBase.RolesUI != null)
+            {
+                TownBase.RolesUI.Show(false);
+            }
             if (!player.isPlayerDead)
             {
                 StartOfRound.Instance.ForcePlayerIntoShip();
@@ -122,11 +133,6 @@ namespace Trouble_In_Company_Town.Gamemode
                 {
                     StartOfRound.Instance.localPlayerController.KillPlayer(new UnityEngine.Vector3(0, 0, 0), false);
                 }
-            }
-            EnemyAI[] array = UnityEngine.Object.FindObjectsOfType<EnemyAI>();
-            for (int i = 0; i < array.Length; i++)
-            {
-                array[i].EnableEnemyMesh(enable: true);
             }
 
             if (!StartOfRound.Instance.IsHost && !StartOfRound.Instance.IsServer)
@@ -219,6 +225,157 @@ namespace Trouble_In_Company_Town.Gamemode
         public void RequestItemSpawnServerRpc(ulong clientId)
         {
             SpawnWeaponSabotage.SpawnItemForClient(clientId);
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void GiveTraitorsWalkieTalkieServerRpc(ulong clientId)
+        {
+            PlayerControllerB player = null;
+            for (int i = 0; i < StartOfRound.Instance.allPlayerScripts.Length; i++)
+            {
+                if (StartOfRound.Instance.allPlayerScripts[i].playerClientId == clientId)
+                {
+                    player = StartOfRound.Instance.allPlayerScripts[i];
+                }
+            }
+            Vector3 spawnPos = player.transform.position;
+
+            if (!player.isPlayerDead)
+            {
+                spawnPos.y -= 5f;
+                GameObject obj = UnityEngine.Object.Instantiate(StartOfRound.Instance.allItemsList.itemsList[14].spawnPrefab, spawnPos, Quaternion.identity);
+                obj.GetComponent<GrabbableObject>().fallTime = 0f;
+
+                obj.AddComponent<ScanNodeProperties>().scrapValue = 0;
+                obj.GetComponent<GrabbableObject>().SetScrapValue(0);
+                obj.GetComponent<NetworkObject>().Spawn();
+
+                EquipRadioClientRpc(obj.GetComponent<NetworkObject>().NetworkObjectId, new ClientRpcParams
+                {
+                    Send = new ClientRpcSendParams
+                    {
+                        TargetClientIds = new ulong[] { clientId },
+                    }
+                });
+            }
+        }
+
+        [ClientRpc]
+        public void EquipRadioClientRpc(ulong objectId, ClientRpcParams clientRpcParans = default)
+        {
+            GrabbableObject radio = null;
+            GrabbableObject[] array = UnityEngine.Object.FindObjectsOfType<GrabbableObject>();
+            for (int i = 0; i < array.Length; i++)
+            {
+                if (array[i].NetworkObjectId == objectId)
+                {
+                    radio = (GrabbableObject)array[i];
+                }
+            }
+            mls.LogDebug("Found radio " + radio + " for id " + objectId);
+            if (radio != null)
+            {
+                radio.EquipItem();
+                radio.PocketItem();
+            }
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void SyncTraitorChannelServerRpc(bool joinedChannel, ulong playerId)
+        {
+            ClientRpcParams clientRpcParams = createBroadcastConfig();
+            SyncTraitorChannelClientRpc(joinedChannel, playerId, Faction.TRAITOR, clientRpcParams);
+        }
+
+        [ClientRpc]
+        public void SyncTraitorChannelClientRpc(bool joinedChannel, ulong clientId, Faction faction, ClientRpcParams clientRpcParans = default)
+        {
+            PlayerControllerB player = null;
+            for (int i = 0; i < StartOfRound.Instance.allPlayerScripts.Length; i++)
+            {
+                if (StartOfRound.Instance.allPlayerScripts[i].playerClientId == clientId)
+                {
+                    player = StartOfRound.Instance.allPlayerScripts[i];
+                    break;
+                }
+            }
+            if (player != null)
+            {
+                Crewmate crewmate = RoleFactory.GetRoleByFaction(faction, clientId, player);
+                TCTRoundManager.Instance.JoinTraitorWalkieChannel(joinedChannel, crewmate);
+            }
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        internal void SyncTraitorKillServerRpc(ulong killedId, ulong killerId, DateTime performedAt)
+        {
+            PlayerControllerB killer = null;
+            PlayerControllerB killed = null;
+            for (int i = 0; i < StartOfRound.Instance.allPlayerScripts.Length; i++)
+            {
+                if (StartOfRound.Instance.allPlayerScripts[i].playerClientId == killedId)
+                {
+                    killed = StartOfRound.Instance.allPlayerScripts[i];
+                }
+                if (StartOfRound.Instance.allPlayerScripts[i].playerClientId == killerId)
+                {
+                    killer = StartOfRound.Instance.allPlayerScripts[i];
+                }
+            }
+
+            Vector3 position = killed.transform.position;
+
+            GameObject obj = UnityEngine.Object.Instantiate(StartOfRound.Instance.allItemsList.itemsList[65].spawnPrefab, position, Quaternion.identity);
+            obj.GetComponent<GrabbableObject>().fallTime = 0f;
+
+            obj.AddComponent<ScanNodeProperties>().scrapValue = 0;
+            obj.GetComponent<GrabbableObject>().SetScrapValue(0);
+            obj.GetComponent<NetworkObject>().Spawn();
+            EquipMaskClientRpc(obj.GetComponent<NetworkObject>().NetworkObjectId, new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] {killed.playerClientId},
+                }
+            });
+            ClientRpcParams clientRpcParams = createBroadcastConfig();
+            SyncTraitorKillClientRpc(killer.playerClientId, performedAt, clientRpcParams);
+        }
+
+        [ClientRpc]
+        internal void EquipMaskClientRpc(ulong objectId, ClientRpcParams clientRpcParans = default)
+        {
+            HauntedMaskItem mask = null;
+            HauntedMaskItem[] array = UnityEngine.Object.FindObjectsOfType<HauntedMaskItem>();
+            for (int i = 0; i < array.Length; i++)
+            {
+                if(array[i].NetworkObjectId == objectId)
+                {
+                    mask = (HauntedMaskItem)array[i];
+                }
+            }
+            mls.LogDebug("Found mask " + mask + " for id " + objectId);
+            if (mask != null)
+            {
+                mask.EquipItem();
+                mask.BeginAttachment();
+            }
+        }
+
+        [ClientRpc]
+        internal void SyncTraitorKillClientRpc(ulong killerId, DateTime performedAt, ClientRpcParams clientRpcParans = default)
+        {
+            Crewmate c = TCTRoundManager.Instance.GetPlayerRoleById(killerId);
+            if(c != null && c.Faction == Faction.TRAITOR)
+            {
+                (c as Traitor).LastKillTime = performedAt;
+            }
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        internal void InitateKillRequestServerRpc(ulong playerId)
+        {
+            TCTRoundManager.Instance.HandlePlayerKill(playerId);
         }
     }
 }

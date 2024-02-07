@@ -20,5 +20,17 @@ namespace Trouble_In_Company_Town.Gamemode.Roles
                 return new Crewmate(clientId, player);
             }
         }
+
+        public static Crewmate GetRoleByFaction(Faction faction, ulong clientId, PlayerControllerB player)
+        {
+            if (faction == Faction.TRAITOR)
+            {
+                return new Traitor(clientId, player);
+            }
+            else
+            {
+                return new Crewmate(clientId, player);
+            }
+        }
     }
 }

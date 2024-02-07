@@ -156,10 +156,16 @@ namespace Trouble_In_Company_Town.Gamemode
                     ActiveSabotages.Remove(toDelete[i]);
                 }
             }
-
+            
             if (VoicesMuted)
             {
+                StartOfRound.Instance.localPlayerController.voicePlayerState.IsLocallyMuted = true;
                 StartOfRound.Instance.localPlayerController.voicePlayerState.Volume = 0;
+            }
+            else
+            {
+                StartOfRound.Instance.localPlayerController.voicePlayerState.Volume = 100;
+                StartOfRound.Instance.localPlayerController.voicePlayerState.IsLocallyMuted = false;
             }
         }
     }

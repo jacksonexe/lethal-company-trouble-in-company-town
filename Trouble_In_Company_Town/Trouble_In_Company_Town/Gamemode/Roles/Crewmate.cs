@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TMPro;
+using UnityEngine;
 
 namespace Trouble_In_Company_Town.Gamemode
 {
@@ -48,6 +49,11 @@ namespace Trouble_In_Company_Town.Gamemode
         public override int GetHashCode()
         {
             return playerId.GetHashCode();
+        }
+
+        public virtual Color GetRoleColor()
+        {
+            return new Color(0, 255, 0, 255);
         }
     }
 }

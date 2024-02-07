@@ -1,5 +1,9 @@
-﻿using BepInEx.Logging;
+﻿using BepInEx.Configuration;
+using BepInEx.Logging;
 using GameNetcodeStuff;
+using LethalConfig.ConfigItems.Options;
+using LethalConfig.ConfigItems;
+using LethalConfig;
 using Steamworks;
 using System;
 using System.Collections.Generic;
@@ -8,13 +12,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.InputSystem.XR;
 
 namespace Trouble_In_Company_Town.Gamemode
 {
     public class TCTRoundManager
     {
         private static List<Crewmate> players;
-        private static int MAX_TRAITORS = 3;
+        private static readonly int MAX_TRAITORS = 3;
         internal ManualLogSource mls;
         public static TCTRoundManager Instance { get; private set; }
         public static Crewmate LocalPlayersRole { get; private set; }
@@ -25,6 +30,10 @@ namespace Trouble_In_Company_Town.Gamemode
         public bool IsRoundOver { get; private set; }
         public static int NumTraitorWins { get; private set; } = 0;
         public static int NumCrewmateWins { get; private set; } = 0;
+        public static ConfigEntry<int> NumberOfTraitors { get; private set; }
+        public static ConfigEntry<int> TraitorKillCooldown { get; private set; }
+
+        public static List<Crewmate> TraitorsTransmittingOnTraitorChannel { get; private set; } = new List<Crewmate>();
 
         public TCTRoundManager() {
             players = new List<Crewmate>();
@@ -36,10 +45,11 @@ namespace Trouble_In_Company_Town.Gamemode
             if(Instance == null)
             {
                 Instance = new TCTRoundManager();
+                Instance.InitConfig();
             }
         }
 
-        public void startRound(StartOfRound playersManager)
+        public void StartRound(StartOfRound playersManager)
         {
             if (IsRunning) return;
             this.resetRound();
@@ -49,7 +59,7 @@ namespace Trouble_In_Company_Town.Gamemode
             IsRunning = true;
         }
 
-        public void stopRound() {  IsRunning = false; }
+        public void StopRound() {  IsRunning = false; }
 
         private List<ulong> getTrators(StartOfRound playersManager)
         {
@@ -64,11 +74,11 @@ namespace Trouble_In_Company_Town.Gamemode
                     playersList.Add(controller.playerClientId);
                 }
             }
-            int numTrators = 1;
-            if (playersList.Count > 6)
+            int numTrators = NumberOfTraitors.Value;
+            /*if (playersList.Count > 6)
             {
                 Math.Max(1, Math.Min((int) Math.Floor((double)(playersList.Count / 3)), MAX_TRAITORS));
-            }
+            }*/
             if(numTrators > players.Count || numTrators == 0)
             {
                 numTrators = 1;
@@ -147,6 +157,7 @@ namespace Trouble_In_Company_Town.Gamemode
             TraitorSabotageManager.Instance.ResetRound();
             LocalPlayersRole = null;
             IsRoundOver = false;
+            TraitorsTransmittingOnTraitorChannel.Clear();
         }
 
         public void SetRoundOver() { 
@@ -223,6 +234,27 @@ namespace Trouble_In_Company_Town.Gamemode
             }
         }
 
+        public void HandleShipLeaveMidnight(StartOfRound playersManager)
+        {
+            List<string> traitors = new List<string>();
+            for (int i = 0; i < playersManager.allPlayerScripts.Length; i++)
+            {
+                Crewmate foundRole = GetPlayerRole(playersManager.allPlayerScripts[i]);
+                if (foundRole != null)
+                {
+                    if (foundRole.Faction == Faction.TRAITOR)
+                    {
+                        traitors.Add(playersManager.allPlayerScripts[i].playerUsername);
+
+                    }
+                }
+            }
+            TCTNetworkHandler.Instance.NotifyRoundOverServerRpc("Crewmates", String.Join(", ", traitors.ToArray()), false, Faction.CREWMATE);
+            TCTRoundManager.NumCrewmateWins = TCTRoundManager.NumCrewmateWins + 1;
+            IsRoundEnding = true;
+        
+    }
+
         public Crewmate GetPlayerRole(PlayerControllerB player)
         {
             for (int i = 0; i < players.Count; i++)
@@ -250,19 +282,94 @@ namespace Trouble_In_Company_Town.Gamemode
             return LocalPlayersRole != null && LocalPlayersRole.Faction == Faction.TRAITOR;
         }
 
-        private void Update()
+        public void JoinTraitorWalkieChannel(bool joinedChannel, Crewmate role = null)
         {
-            if (IsRunning)
+            if (role == null && LocalPlayerIsTraitor())
             {
-                EnemyAI[] array = UnityEngine.Object.FindObjectsOfType<EnemyAI>();
-                if (LocalPlayersRole != null && LocalPlayersRole.Faction == Faction.TRAITOR) //Traitors are immune to monsters
+                role = LocalPlayersRole;
+            }
+            else if (role == null)
+            {
+                return;
+            }
+            if (role.Faction == Faction.TRAITOR)
+            {
+                if(!joinedChannel && TraitorsTransmittingOnTraitorChannel.Contains(role))
                 {
-                    for (int i = 0; i < array.Length; i++)
-                    {
-                        array[i].EnableEnemyMesh(enable: false);
-                    }
+                    TraitorsTransmittingOnTraitorChannel.Remove(role);
+                }
+                else if (!TraitorsTransmittingOnTraitorChannel.Contains(role)) {
+                    TraitorsTransmittingOnTraitorChannel.Add(role);
                 }
             }
+        }
+
+        public bool IsPlayerTraitor(PlayerControllerB playerHeldBy)
+        {
+            if(playerHeldBy== null)
+            {
+                return false;
+            }
+            Crewmate role = this.GetPlayerRole(playerHeldBy);
+            return role != null && role.Faction == Faction.TRAITOR;
+        }
+
+        public bool TraitorCanKill(Traitor traitor)
+        {
+            if (traitor != null && traitor.LastKillTime != null) {
+                double diff = DateTime.Now.Subtract(traitor.LastKillTime).TotalSeconds;
+                return diff >= TraitorKillCooldown.Value;
+            }
+            return true;
+        }
+
+        internal Crewmate GetPlayerRoleById(ulong playerId)
+        {
+            PlayerControllerB player = null;
+            for (int i = 0; i < StartOfRound.Instance.allPlayerScripts.Length; i++)
+            {
+                if (StartOfRound.Instance.allPlayerScripts[i].playerClientId == playerId)
+                {
+                    player = StartOfRound.Instance.allPlayerScripts[i];
+                }
+            }
+
+            return this.GetPlayerRole(player);
+        }
+
+        internal void HandleLocalPlayerKill()
+        {
+            if (LocalPlayersRole != null && this.LocalPlayerIsTraitor())
+            {
+                TCTNetworkHandler.Instance.InitateKillRequestServerRpc(LocalPlayersRole.playerId);
+            }
+        }
+
+        internal void HandlePlayerKill(ulong playerId)
+        {   
+            Crewmate c = GetPlayerRoleById(playerId);
+            if (c.Faction == Faction.TRAITOR && TraitorCanKill(c as Traitor))
+            {
+                (c as Traitor).ExecuteKillingAbility();
+            }
+        }
+
+        internal void InitConfig()
+        {
+            NumberOfTraitors = TownBase.Instance.Config.Bind("Traitors", "Number of Traitors", 1, "Number of traitors, if exceeds number of players, 1 is used.");
+            LethalConfigManager.AddConfigItem(new IntInputFieldConfigItem(NumberOfTraitors, new IntInputFieldOptions
+            {
+                Min = 1,
+                Max = MAX_TRAITORS,
+                RequiresRestart = true,
+            }));
+            TraitorKillCooldown = TownBase.Instance.Config.Bind("Traitors", "Kill Cooldown", 30, "Kill cooldown of the traitors in seconds.");
+            LethalConfigManager.AddConfigItem(new IntInputFieldConfigItem(TraitorKillCooldown, new IntInputFieldOptions
+            {
+                Min = 1,
+                Max = 300,
+                RequiresRestart = true,
+            }));
         }
     }
 }

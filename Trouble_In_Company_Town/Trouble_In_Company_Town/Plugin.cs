@@ -1,8 +1,10 @@
 ﻿using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
+using LethalConfig;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -10,12 +12,15 @@ using System.Threading.Tasks;
 using Trouble_In_Company_Town.Gamemode;
 using Trouble_In_Company_Town.Input;
 using Trouble_In_Company_Town.Patches;
+using Trouble_In_Company_Town.UI;
 using UnityEngine;
+using UnityEngine.Assertions;
 
 namespace Trouble_In_Company_Town
 {
     [BepInPlugin(modGUID, modName, modVersion)]
     [BepInDependency("com.rune580.LethalCompanyInputUtils", BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency("ainavt.lc.lethalconfig", BepInDependency.DependencyFlags.HardDependency)]
     public class TownBase : BaseUnityPlugin
     {
         private const string modGUID = "jackexe.TroubleInCompanyTown";
@@ -27,8 +32,13 @@ namespace Trouble_In_Company_Town
 
         internal ManualLogSource mls;
         public GameObject netManagerPrefab;
+        public static GameObject RolePrefab;
+        public static TCTRolesUI RolesUI;
+        public static GameObject KillCooldownPrefab;
+        public static TCTKillCooldown KillCooldownUI;
+        public static AssetBundle bundle;
 
-        internal static TraitorInputManagement InputActionsInstance = new TraitorInputManagement();
+        public static TCTInputManagement InputActionsInstance = new TCTInputManagement();
 
         void Awake()
         {
@@ -51,7 +61,7 @@ namespace Trouble_In_Company_Town
             }
             var dllFolderPath = System.IO.Path.GetDirectoryName(Info.Location);
             var assetBundleFilePath = System.IO.Path.Combine(dllFolderPath, "tctassets");
-            AssetBundle bundle = AssetBundle.LoadFromFile(assetBundleFilePath);
+            bundle = AssetBundle.LoadFromFile(assetBundleFilePath);
             netManagerPrefab = bundle.LoadAsset<GameObject>("Assets/TCAssets/TCTAssets.prefab");
             netManagerPrefab.AddComponent<TCTNetworkHandler>();
 
@@ -65,6 +75,10 @@ namespace Trouble_In_Company_Town
             harmony.PatchAll(typeof(NetworkObjectManagerPatch));
             harmony.PatchAll(typeof(HudManagerPatches));
             harmony.PatchAll(typeof(RoundManagerPatch));
+            harmony.PatchAll(typeof(EnemyAIPatch));
+            harmony.PatchAll(typeof(WalkieTalkiePatch));
+
+            LethalConfigManager.SetModDescription("Configuration for Trouble in Company Town");
             TCTRoundManager.Init();
         }
     }
