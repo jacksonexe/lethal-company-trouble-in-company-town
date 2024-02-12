@@ -12,6 +12,7 @@ using Unity.Netcode;
 using UnityEngine;
 using System.Data;
 using Trouble_In_Company_Town.UI;
+using static UnityEngine.GraphicsBuffer;
 
 namespace Trouble_In_Company_Town.Patches
 {
@@ -26,22 +27,6 @@ namespace Trouble_In_Company_Town.Patches
             if (terminal != null)
             {
                 terminal.groupCredits = 500;
-            }
-            if (TownBase.RolePrefab != null || TownBase.KillCooldownPrefab != null)
-            {
-                GameObject gameObject = ((Component)((Component)GameObject.Find("Systems").gameObject.transform.Find("UI")).gameObject.transform.Find("Canvas")).gameObject;
-
-                if (TownBase.RolePrefab != null)
-                {
-                    TownBase.RolePrefab = TownBase.bundle.LoadAsset<GameObject>("Assets/TCAssets/RoleUI.prefab");
-                    TownBase.RolesUI = UnityEngine.Object.Instantiate(TownBase.RolePrefab, gameObject.transform).AddComponent<TCTRolesUI>();
-                }
-
-                if (TownBase.KillCooldownPrefab != null)
-                {
-                    TownBase.KillCooldownPrefab = TownBase.bundle.LoadAsset<GameObject>("Assets/TCAssets/KillCooldownUI.prefab");
-                    TownBase.KillCooldownUI = UnityEngine.Object.Instantiate(TownBase.KillCooldownPrefab, gameObject.transform).AddComponent<TCTKillCooldown>();
-                }
             }
             if (__instance.IsHost || __instance.IsServer) 
             {
@@ -71,39 +56,46 @@ namespace Trouble_In_Company_Town.Patches
                 {
                     if (TCTRoundManager.Instance.IsRunning && !TCTRoundManager.Instance.IsRoundEnding)
                     {
+                        StartMatchLever startMatchLever = GameObject.FindObjectOfType<StartMatchLever>();
+                        startMatchLever.triggerScript.enabled = false;
                         TCTRoundManager.Instance.checkIfRoundOver(__instance);
                     }
                     else if (TCTRoundManager.Instance.IsRoundEnding && !TCTRoundManager.Instance.IsRoundOver)
                     {
                         TCTRoundManager.Instance.SetRoundOver();
+                        TCTNetworkHandler.Instance.NotifyOfRoundEndingServerRpc();
                         StartOfRound.Instance.EndGameServerRpc(0);
-                        StartOfRound.Instance.SetDoorsClosedServerRpc(true);
-                    }
-                    if (TownBase.KillCooldownUI != null)
-                    {
-                        if (TCTRoundManager.Instance.IsRunning && !__instance.localPlayerController.isPlayerDead && TCTRoundManager.Instance.LocalPlayerIsTraitor())
-                        {
-                            Traitor localPlayer = (Traitor)TCTRoundManager.LocalPlayersRole;
-                            if (TCTRoundManager.TraitorKillCooldown != null)
-                            {
-                                TownBase.KillCooldownUI.Show(true);
-                                TownBase.KillCooldownUI.SetTimer((int)(TCTRoundManager.TraitorKillCooldown.Value - DateTime.Now.Subtract(localPlayer.LastKillTime).TotalSeconds));
-                            }
-                            else
-                            {
-                                TownBase.KillCooldownUI.Show(false);
-                            }
-                        }
-                        else if (TownBase.KillCooldownUI != null)
-                        {
-                            TownBase.KillCooldownUI.Show(false);
-                        }
                     }
 
                     if (TCTRoundManager.Instance.IsRunning && __instance.shipIsLeaving && TimeOfDay.Instance.currentDayTime / TimeOfDay.Instance.totalTime >= TimeOfDay.Instance.shipLeaveAutomaticallyTime)
                     {
                         TCTRoundManager.Instance.HandleShipLeaveMidnight(__instance);
                     }
+                }
+            }
+            if (__instance.inShipPhase)
+            {
+                StartMatchLever startMatchLever = GameObject.FindObjectOfType<StartMatchLever>();
+                int numConnected = 0;
+                for (int i = 0; i < __instance.allPlayerScripts.Length; i++)
+                {
+                    PlayerControllerB controller = __instance.allPlayerScripts[i];
+                    if (controller.isActiveAndEnabled && (controller.isPlayerControlled || controller.isPlayerDead))
+                    {
+                        numConnected++;
+                    }
+                }
+                if (numConnected < 2)
+                {
+                    startMatchLever.triggerScript.enabled = false;
+                    startMatchLever.triggerScript.hoverTip = "At least 2 players are required";
+                    startMatchLever.triggerScript.disableTriggerMesh = true;
+                }
+                else
+                {
+                    startMatchLever.triggerScript.enabled = true;
+                    startMatchLever.triggerScript.hoverTip = "Start Round";
+                    startMatchLever.triggerScript.disableTriggerMesh = false;
                 }
             }
         }
@@ -130,6 +122,8 @@ namespace Trouble_In_Company_Town.Patches
             }
             TimeOfDay.Instance.daysUntilDeadline = 1;
             __instance.screenLevelDescription.SetText("Traitor Wins: " + TCTRoundManager.NumTraitorWins + "\nCrewmate Wins: " + TCTRoundManager.NumCrewmateWins);
+            StartMatchLever startMatchLever = GameObject.FindObjectOfType<StartMatchLever>();
+            startMatchLever.triggerScript.enabled = true;
         }
 
     }

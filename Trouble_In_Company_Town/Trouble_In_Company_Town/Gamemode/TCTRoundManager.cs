@@ -160,6 +160,11 @@ namespace Trouble_In_Company_Town.Gamemode
             TraitorsTransmittingOnTraitorChannel.Clear();
         }
 
+        public void SetRouteStarted()
+        {
+            IsRunning = true;
+        }
+
         public void SetRoundOver() { 
             IsRoundOver = true;
             IsRoundEnding = false;

@@ -29,6 +29,9 @@ namespace Trouble_In_Company_Town.Input
         [InputAction("<Keyboard>/z", Name = "Kill")]
         public InputAction TraitorKill { get; set; }
 
+        [InputAction("<Keyboard>/x", Name = "Landmine Sabotage")]
+        public InputAction SpawnLandmine { get; set; }
+
         public TCTInputManagement()
         {
             LightsSaboKey.performed += LightsSaboKeyListener;
@@ -36,6 +39,7 @@ namespace Trouble_In_Company_Town.Input
             WeaponSabo.performed += WeaponSaboKeyListener;
             TraitorWalkieChannel.performed += ChangeWalkieChannel;
             TraitorKill.performed += TraitorKillListener;
+            SpawnLandmine.performed += SpawnLandmineListener;
         }
 
         public void LightsSaboKeyListener(InputAction.CallbackContext saboKey)
@@ -70,6 +74,13 @@ namespace Trouble_In_Company_Town.Input
         {
             if(!killKey.performed) return;
             TCTRoundManager.Instance.HandleLocalPlayerKill();
+        }
+
+        public void SpawnLandmineListener(InputAction.CallbackContext saboKey)
+        {
+            mls.LogDebug("Checking if the landmine key is pressed" + saboKey.performed);
+            if (!saboKey.performed) return;
+            TraitorSabotageManager.Instance.LandmineSaboKeyListener();
         }
     }
 }

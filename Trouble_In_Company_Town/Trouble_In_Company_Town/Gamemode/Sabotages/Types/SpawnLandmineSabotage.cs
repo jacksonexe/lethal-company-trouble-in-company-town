@@ -9,15 +9,15 @@ using UnityEngine;
 
 namespace Trouble_In_Company_Town.Gamemode.Sabotages
 {
-    public class SpawnWeaponSabotage : TimedSabotage
+    public class SpawnLandmineSabotage : TimedSabotage
     {
-        public SpawnWeaponSabotage(DateTime startTime) : base(startTime)
+        public SpawnLandmineSabotage(DateTime startTime) : base(startTime)
         {
         }
 
-        public SpawnWeaponSabotage() : base() { }
+        public SpawnLandmineSabotage() : base() { }
         
-        public static new string SABOTAGE_NAME { get; private set; } = "Weapon";
+        public static new string SABOTAGE_NAME { get; private set; } = "Landmine";
 
         public static void SpawnItemForClient(ulong clientId)
         {
@@ -31,19 +31,19 @@ namespace Trouble_In_Company_Town.Gamemode.Sabotages
             }
             if (TCTRoundManager.Instance.IsPlayerTraitor(player) && !player.isPlayerDead)
             {
-                Vector3 spawnPos = player.transform.position;
+                Vector3 playerPos = player.transform.position;
+                Vector3 playerDirection = player.transform.forward;
+                Quaternion playerRotation = player.transform.rotation;
+                float spawnDistance = 2;
 
-                if (player.isPlayerDead)
+                Vector3 spawnPos = playerPos + playerDirection * spawnDistance;
+
+                GameObject val = ((IEnumerable<GameObject>)Resources.FindObjectsOfTypeAll<GameObject>()).FirstOrDefault((Func<GameObject, bool>)((GameObject x) => ((UnityEngine.Object)x).name == "Landmine"));
+                val.transform.rotation = Quaternion.Euler(-90f, 0f, 0f);
+                if ((System.Object)(object)val != (UnityEngine.Object)null)
                 {
-                    spawnPos = player.spectatedPlayerScript.transform.position;
+                    TraitorSabotageManager.Instance.RegisterLandmine(UnityEngine.Object.Instantiate<GameObject>(val, spawnPos, val.transform.rotation));
                 }
-                spawnPos.y += 0.5f;
-                GameObject obj = UnityEngine.Object.Instantiate(StartOfRound.Instance.allItemsList.itemsList[52].spawnPrefab, spawnPos, Quaternion.identity);
-                obj.GetComponent<GrabbableObject>().fallTime = 5f;
-
-                obj.AddComponent<ScanNodeProperties>().scrapValue = 0;
-                obj.GetComponent<GrabbableObject>().SetScrapValue(0);
-                obj.GetComponent<NetworkObject>().Spawn();
             }
         }
 
@@ -58,13 +58,13 @@ namespace Trouble_In_Company_Town.Gamemode.Sabotages
             }
             else
             {
-                TCTNetworkHandler.Instance.RequestItemSpawnServerRpc(StartOfRound.Instance.localPlayerController.playerClientId);
+                TCTNetworkHandler.Instance.RequestLandmineSpawnServerRpc(StartOfRound.Instance.localPlayerController.playerClientId);
             }
         }
 
         public override int GetTimeout()
         {
-            return 99999; //Only one per game
+            return 90; //Only one per game
         }
 
         public override string GetSabotageName()
@@ -74,12 +74,12 @@ namespace Trouble_In_Company_Town.Gamemode.Sabotages
 
         public override string GetSabotageActiveText()
         {
-            return "Weapon is already deployed";
+            return "Landmine is already deployed";
         }
 
         public override string GetSabotageStartedText()
         {
-            return "Weapons have been deployed";
+            return "Landmine have been deployed";
         }
 
         public override void EndSabotage()

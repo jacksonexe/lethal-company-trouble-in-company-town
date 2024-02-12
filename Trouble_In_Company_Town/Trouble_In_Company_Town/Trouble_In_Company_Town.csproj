@@ -100,6 +100,7 @@
     <Compile Include="Gamemode\Sabotages\SabotageFactory.cs" />
     <Compile Include="Gamemode\Sabotages\Types\LightsSabotage.cs" />
     <Compile Include="Gamemode\Sabotages\Types\Sabotage.cs" />
+    <Compile Include="Gamemode\Sabotages\Types\SpawnLandmineSabotage.cs" />
     <Compile Include="Gamemode\Sabotages\Types\TimedSabotage.cs" />
     <Compile Include="Gamemode\Sabotages\Types\SpawnWeaponSabotage.cs" />
     <Compile Include="Gamemode\Sabotages\Types\VOIPSabotage.cs" />
@@ -110,6 +111,7 @@
     <Compile Include="Input\TCTInputManagement.cs" />
     <Compile Include="Patches\EnemyAIPatch.cs" />
     <Compile Include="Patches\HudManagerPatches.cs" />
+    <Compile Include="Patches\LandminePatch.cs" />
     <Compile Include="Patches\NetworkObjectManagerPatch.cs" />
     <Compile Include="Patches\RoundManagerPatch.cs" />
     <Compile Include="Patches\StartOfRoundPatch.cs" />

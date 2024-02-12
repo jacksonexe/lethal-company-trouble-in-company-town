@@ -14,14 +14,47 @@ namespace Trouble_In_Company_Town.Patches
     [HarmonyPatch(typeof(PlayerControllerB))]
     internal class PlayerControllerBPatch
     {
-        private static CauseOfDeath LastCauseOfDeath;
+        private static float DefaultIntensity;
+        private static float DefaultRange;
+        private static float DefaultShadowStrength;
+        private static LightShadows DefaultShadows;
+        private static LightShape DefaultShape;
+
+        [HarmonyPatch("Awake")]
+        [HarmonyPostfix]
+        public static void AwakePatch(PlayerControllerB __instance)
+        {
+            DefaultIntensity = __instance.nightVision.intensity;
+            DefaultRange = __instance.nightVision.range;
+            DefaultShadowStrength = __instance.nightVision.shadowStrength;
+            DefaultShadows = __instance.nightVision.shadows;
+            DefaultShape = __instance.nightVision.shape;
+        }
 
         [HarmonyPatch("Update")]
         [HarmonyPostfix]
-        static void infiniteSprintPatch(ref float  ___sprintMeter)
+        static void infiniteSprintPatch(ref float  ___sprintMeter, PlayerControllerB __instance)
         {
             //For debug
             ___sprintMeter = 1f;
+            if(TCTRoundManager.Instance.LocalPlayerIsTraitor() && __instance.isInsideFactory && TCTRoundManager.Instance.IsRunning && !TCTRoundManager.Instance.IsRoundEnding)
+            {
+                __instance.nightVision.enabled = true;
+                __instance.nightVision.intensity = 10000f;
+                __instance.nightVision.range = 100000f;
+                __instance.nightVision.shadowStrength = 0f;
+                __instance.nightVision.shadows = (LightShadows)0;
+                __instance.nightVision.shape = (LightShape)2;
+            }
+            else
+            {
+                __instance.nightVision.enabled = false;
+                __instance.nightVision.intensity = DefaultIntensity;
+                __instance.nightVision.range = DefaultRange;
+                __instance.nightVision.shadowStrength = DefaultShadowStrength;
+                __instance.nightVision.shadows = DefaultShadows;
+                __instance.nightVision.shape = DefaultShape;
+            }
         }
 
         [HarmonyPatch("PlayerIsHearingOthersThroughWalkieTalkie")]
@@ -51,20 +84,14 @@ namespace Trouble_In_Company_Town.Patches
 
         [HarmonyPatch("KillPlayer")]
         [HarmonyPrefix]
-        public static void KillPlayerPatch(Vector3 bodyVelocity, bool spawnBody, CauseOfDeath causeOfDeath, int deathAnimation)
+        public static bool KillPlayerPatch(Vector3 bodyVelocity, bool spawnBody, CauseOfDeath causeOfDeath, int deathAnimation)
         {
-            LastCauseOfDeath = causeOfDeath;
-        }
-            
-        [HarmonyPatch("AllowPlayerDeath")]
-        [HarmonyPostfix]
-        private static bool AllowPlayerDeathPatch(bool __ret)
-        {
-            if ((LastCauseOfDeath == CauseOfDeath.Mauling || LastCauseOfDeath == CauseOfDeath.Strangulation || LastCauseOfDeath == CauseOfDeath.Mauling || LastCauseOfDeath == CauseOfDeath.Crushing) && TCTRoundManager.Instance.LocalPlayerIsTraitor())
+            if ((causeOfDeath == CauseOfDeath.Mauling || causeOfDeath == CauseOfDeath.Strangulation || causeOfDeath == CauseOfDeath.Mauling || causeOfDeath == CauseOfDeath.Crushing) && TCTRoundManager.Instance.LocalPlayerIsTraitor())
             {
                 return false;
             }
-            return __ret;
+            return true;
         }
+            
     }
 }

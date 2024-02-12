@@ -30,12 +30,8 @@ namespace Trouble_In_Company_Town
         private readonly Harmony harmony = new Harmony(modGUID);
         public static TownBase Instance;
 
-        internal ManualLogSource mls;
+        public static ManualLogSource mls;
         public GameObject netManagerPrefab;
-        public static GameObject RolePrefab;
-        public static TCTRolesUI RolesUI;
-        public static GameObject KillCooldownPrefab;
-        public static TCTKillCooldown KillCooldownUI;
         public static AssetBundle bundle;
 
         public static TCTInputManagement InputActionsInstance = new TCTInputManagement();

@@ -22,6 +22,10 @@ namespace Trouble_In_Company_Town.Gamemode.Sabotages
             {
                 return new SpawnWeaponSabotage();
             }
+            else if (name.Equals(SpawnLandmineSabotage.SABOTAGE_NAME))
+            {
+                return new SpawnLandmineSabotage();
+            }
             return null;
         }
     }

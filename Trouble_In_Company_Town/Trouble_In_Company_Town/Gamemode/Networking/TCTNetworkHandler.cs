@@ -1,6 +1,7 @@
 ﻿using BepInEx.Logging;
 using GameNetcodeStuff;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -81,11 +82,6 @@ namespace Trouble_In_Company_Town.Gamemode
             if (player != null)
             {
                 Crewmate crewmate = RoleFactory.GetRole(role, id, player);
-                if (TownBase.RolesUI != null)
-                {
-                    TownBase.RolesUI.SetRole(crewmate.GetRoleName(), crewmate.GetRoleColor());
-                    TownBase.RolesUI.Show(true);
-                }
                 if (id == StartOfRound.Instance.localPlayerController.playerClientId)
                 {
                     TCTRoundManager.Instance.registerLocalPlayersRole(crewmate);
@@ -121,10 +117,6 @@ namespace Trouble_In_Company_Town.Gamemode
             mls.LogDebug("Round ended received, winner " + winner + " " + traitors);
             PlayerControllerB player = GameNetworkManager.Instance.localPlayerController;
             Utilities.DisplayTips("Round Over ", "Winner: " + winner + "\nTraitors: " + traitors, warn);
-            if (TownBase.RolesUI != null)
-            {
-                TownBase.RolesUI.Show(false);
-            }
             if (!player.isPlayerDead)
             {
                 StartOfRound.Instance.ForcePlayerIntoShip();
@@ -138,6 +130,7 @@ namespace Trouble_In_Company_Town.Gamemode
             if (!StartOfRound.Instance.IsHost && !StartOfRound.Instance.IsServer)
             {
                 TCTRoundManager.Instance.UpdateClientScore(faction);
+                TCTRoundManager.Instance.SetRoundOver();
             }
         }
 
@@ -157,6 +150,7 @@ namespace Trouble_In_Company_Town.Gamemode
             HUDManager.Instance.planetRiskLevelText.text = "Company Town is in Trouble";
             if (!StartOfRound.Instance.IsHost && !StartOfRound.Instance.IsServer) {
                 TCTRoundManager.Instance.resetRound();
+                TCTRoundManager.Instance.SetRouteStarted();
             }
         }
 
@@ -228,6 +222,12 @@ namespace Trouble_In_Company_Town.Gamemode
         }
 
         [ServerRpc(RequireOwnership = false)]
+        public void RequestLandmineSpawnServerRpc(ulong clientId)
+        {
+            SpawnLandmineSabotage.SpawnItemForClient(clientId);
+        }
+
+        [ServerRpc(RequireOwnership = false)]
         public void GiveTraitorsWalkieTalkieServerRpc(ulong clientId)
         {
             PlayerControllerB player = null;
@@ -275,7 +275,13 @@ namespace Trouble_In_Company_Town.Gamemode
             mls.LogDebug("Found radio " + radio + " for id " + objectId);
             if (radio != null)
             {
-                radio.EquipItem();
+                InteractTrigger trigger = radio.gameObject.GetComponent<InteractTrigger>();
+                if (trigger != null)
+                {
+                    trigger.Interact(StartOfRound.Instance.localPlayerController.transform);
+                    trigger.onInteract.Invoke(StartOfRound.Instance.localPlayerController);
+                }
+                radio.GrabItem();
                 radio.PocketItem();
             }
         }
@@ -322,20 +328,11 @@ namespace Trouble_In_Company_Town.Gamemode
                     killer = StartOfRound.Instance.allPlayerScripts[i];
                 }
             }
-
-            Vector3 position = killed.transform.position;
-
-            GameObject obj = UnityEngine.Object.Instantiate(StartOfRound.Instance.allItemsList.itemsList[65].spawnPrefab, position, Quaternion.identity);
-            obj.GetComponent<GrabbableObject>().fallTime = 0f;
-
-            obj.AddComponent<ScanNodeProperties>().scrapValue = 0;
-            obj.GetComponent<GrabbableObject>().SetScrapValue(0);
-            obj.GetComponent<NetworkObject>().Spawn();
-            EquipMaskClientRpc(obj.GetComponent<NetworkObject>().NetworkObjectId, new ClientRpcParams
+            EquipMaskClientRpc(new ClientRpcParams
             {
                 Send = new ClientRpcSendParams
                 {
-                    TargetClientIds = new ulong[] {killed.playerClientId},
+                    TargetClientIds = new ulong[] { killed.playerClientId },
                 }
             });
             ClientRpcParams clientRpcParams = createBroadcastConfig();
@@ -343,23 +340,9 @@ namespace Trouble_In_Company_Town.Gamemode
         }
 
         [ClientRpc]
-        internal void EquipMaskClientRpc(ulong objectId, ClientRpcParams clientRpcParans = default)
+        internal void EquipMaskClientRpc(ClientRpcParams clientRpcParans = default)
         {
-            HauntedMaskItem mask = null;
-            HauntedMaskItem[] array = UnityEngine.Object.FindObjectsOfType<HauntedMaskItem>();
-            for (int i = 0; i < array.Length; i++)
-            {
-                if(array[i].NetworkObjectId == objectId)
-                {
-                    mask = (HauntedMaskItem)array[i];
-                }
-            }
-            mls.LogDebug("Found mask " + mask + " for id " + objectId);
-            if (mask != null)
-            {
-                mask.EquipItem();
-                mask.BeginAttachment();
-            }
+            StartOfRound.Instance.localPlayerController.KillPlayer(Vector2.zero, true, CauseOfDeath.Suffocation, 5);
         }
 
         [ClientRpc]
@@ -376,6 +359,24 @@ namespace Trouble_In_Company_Town.Gamemode
         internal void InitateKillRequestServerRpc(ulong playerId)
         {
             TCTRoundManager.Instance.HandlePlayerKill(playerId);
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        internal void NotifyOfRoundEndingServerRpc()
+        {
+            ClientRpcParams clientRpcParams = createBroadcastConfig();
+            NotifyOfRoundEndingClientRpc(clientRpcParams);
+        }
+
+        [ClientRpc]
+        internal void NotifyOfRoundEndingClientRpc(ClientRpcParams clientRpcParans = default)
+        {
+            StartMatchLever startMatchLever = GameObject.FindObjectOfType<StartMatchLever>();
+            startMatchLever.triggerScript.animationString = "SA_PushLeverBack";
+            startMatchLever.leverHasBeenPulled = false;
+            startMatchLever.triggerScript.interactable = false;
+            startMatchLever.leverAnimatorObject.SetBool("pullLever", false);
+            StartOfRound.Instance.SetShipDoorsClosed(true);
         }
     }
 }
